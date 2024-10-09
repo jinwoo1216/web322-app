@@ -32,9 +32,9 @@ h2 {
 
 aside {
     background-color: #e9ecef;
-    padding: 15px;
+    padding: 20px;
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 0px;
 }
 
 /* Make sure the body has proper padding when using fixed navbar */
