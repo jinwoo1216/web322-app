@@ -1,7 +1,7 @@
 // server.js
 
 /*********************************************************************************
-WEB322 – Assignment 02
+WEB322 – Assignment 03
 I declare that this assignment is my own work in accordance with Seneca Academic Policy. 
 No part of this assignment has been copied manually or electronically from any other 
 source (including 3rd party web sites) or distributed to other students.
@@ -28,7 +28,7 @@ const HTTP_PORT = process.env.PORT || 8080;
 
 // Set up Cloudinary configuration
 cloudinary.config({
-  cloud_name: 'web322-app',
+  cloud_name: 'diytti8dx',
   api_key: '837181373364637',
   api_secret: 'Qe6JKyU3I95QUDKSS6_rxINiAyc',
   secure: true
@@ -38,6 +38,8 @@ const upload = multer(); // Initialize multer without disk storage
 
 // Middleware to serve static files from the "public" folder
 app.use(express.static('public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Route for the root URL ("/") to redirect to the "/about" page
 app.get('/', (req, res) => {
