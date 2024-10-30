@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 let items = [];
-let categories = {};
+let categories = [];
 
 // Function to initialize the data by reading the JSON files
 function initialize() {
@@ -66,10 +66,22 @@ function getCategories() {
   });
 }
 
-// Export the functions so they can be used in server.js
+// Function to add a new item
+function addItem(itemData) {
+  return new Promise((resolve) => {
+    itemData.published = itemData.published ? true : false;
+    itemData.id = items.length + 1; // Simple ID assignment
+    
+    items.push(itemData); // Add the item to the items array
+    resolve(itemData); // Resolve with the new item data
+  });
+}
+
+// Export the functions for use in server.js
 module.exports = {
   initialize,
   getAllItems,
   getPublishedItems,
-  getCategories
+  getCategories,
+  addItem
 };

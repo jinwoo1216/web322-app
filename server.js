@@ -16,12 +16,25 @@ GitHub Repository URL: https://github.com/jinwoo1216/web322-app
 const express = require('express');
 const path = require('path');
 const storeService = require('./store-service');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
 
 // Initialize express app
 const app = express();
 
 // Set the port to process.env.PORT or default to 8080
 const HTTP_PORT = process.env.PORT || 8080;
+
+// Set up Cloudinary configuration
+cloudinary.config({
+  cloud_name: 'web322-app',
+  api_key: '837181373364637',
+  api_secret: 'Qe6JKyU3I95QUDKSS6_rxINiAyc',
+  secure: true
+});
+
+const upload = multer(); // Initialize multer without disk storage
 
 // Middleware to serve static files from the "public" folder
 app.use(express.static('public'));
@@ -69,6 +82,64 @@ app.get('/shop', (req, res) => {
         res.status(500).send(err);
       });
   });
+
+  // Route to serve addItem.html for adding a new item
+  app.get('/items/add', (req, res) => {
+   res.sendFile(path.join(__dirname, 'views', 'addItem.html'));
+  });
+
+  // Route for adding a new item with image upload
+  app.post('/items/add', upload.single('featureImage'), (req, res) => {
+    if (req.file) {
+      // Function to upload the file stream to Cloudinary
+      let streamUpload = (req) => {
+        return new Promise((resolve, reject) => {
+          let stream = cloudinary.uploader.upload_stream(
+            (error, result) => {
+              if (result) {
+                resolve(result);
+              } else {
+                reject(error);
+              }
+            }
+          );
+          streamifier.createReadStream(req.file.buffer).pipe(stream);
+        });
+      };
+  
+      // Async function to handle the upload
+      async function upload(req) {
+        let result = await streamUpload(req);
+        console.log(result); // For debugging, shows the Cloudinary upload result
+        return result;
+      }
+  
+      // Upload the image and process the item
+      upload(req).then((uploaded) => {
+        processItem(uploaded.url);
+      }).catch((err) => {
+        res.status(500).send("Failed to upload image.");
+      });
+  
+    } else {
+      // No file uploaded; proceed with an empty image URL
+      processItem("");
+    }
+  
+    // Function to process the item data
+    function processItem(imageUrl) {
+      req.body.featureImage = imageUrl;
+  
+      // Use the new function in store-service to add the item
+      storeService.addItem(req.body)
+        .then((newItem) => {
+          res.redirect('/items'); // Redirect to /items after adding new item
+        })
+        .catch((err) => {
+          res.status(500).send("Error adding new item.");
+        });
+    }
+  });  
   
   // Initialize the data from JSON files before starting the server
   storeService.initialize()
