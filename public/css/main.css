@@ -1,0 +1,43 @@
+/* Style the navbar */
+.navbar {
+    font-size: 1.1rem;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.navbar-nav .nav-link {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.nav-link.active {
+    background-color: #333;
+    color: white !important;
+}
+
+/* Style for the main content */
+.main {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Style for the columns */
+h2 {
+    margin-bottom: 20px;
+}
+
+aside {
+    background-color: #e9ecef;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 0px;
+}
+
+/* Make sure the body has proper padding when using fixed navbar */
+body {
+    padding-top: 60px;
+}
