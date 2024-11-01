@@ -9,7 +9,7 @@ source (including 3rd party web sites) or distributed to other students.
 Name: Jinwoo Park
 Student ID: 180446239
 Date: October 7, 2024
-Render Web App URL: https://web322-app-vljk.onrender.com
+Render Web App URL: https://web322-app-ores.onrender.com
 GitHub Repository URL: https://github.com/jinwoo1216/web322-app
 ********************************************************************************/
 
