@@ -65,14 +65,31 @@ app.get('/shop', (req, res) => {
   
   // Route for items (all items)
   app.get('/items', (req, res) => {
-    storeService.getAllItems()
-      .then((items) => {
-        res.json(items); // Send all items as JSON
-      })
-      .catch((err) => {
-        res.status(500).send(err);
-      });
+    // Check for the query parameters in the URL
+    if (req.query.category) {
+      // Call the getItemsByCategory function from store-service.js
+      storeService.getItemsByCategory(req.query.category)
+        .then((items) => res.json(items))
+        .catch((err) => res.status(404).json({ message: err }));
+    } else if (req.query.minDate) {
+      // Call the getItemsByMinDate function from store-service.js
+      storeService.getItemsByMinDate(req.query.minDate)
+        .then((items) => res.json(items))
+        .catch((err) => res.status(404).json({ message: err }));
+    } else {
+      // Default behavior: get all items
+      storeService.getAllItems()
+        .then((items) => res.json(items))
+        .catch((err) => res.status(404).json({ message: err }));
+    }
   });
+
+  // Route to fetch a single item by ID
+app.get('/item/:id', (req, res) => {
+  storeService.getItemById(req.params.id)
+    .then((item) => res.json(item))
+    .catch((err) => res.status(404).json({ message: err }));
+});
   
   // Route for categories
   app.get('/categories', (req, res) => {
