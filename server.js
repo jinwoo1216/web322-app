@@ -19,12 +19,17 @@ const storeService = require('./store-service');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
+const exphbs = require('express-handlebars');
 
 // Initialize express app
 const app = express();
 
 // Set the port to process.env.PORT or default to 8080
 const HTTP_PORT = process.env.PORT || 8080;
+
+// Configure Handlebars as the view engine
+app.engine('.hbs', exphbs.engine({ extname: '.hbs' }));
+app.set('view engine', '.hbs');
 
 // Set up Cloudinary configuration
 cloudinary.config({
@@ -48,7 +53,7 @@ app.get('/', (req, res) => {
 
 // Route to serve the about.html file from the "views" folder
 app.get('/about', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'about.html'));
+  res.render('about');
 });
 
 
@@ -102,9 +107,9 @@ app.get('/item/:id', (req, res) => {
       });
   });
 
-  // Route to serve addItem.html for adding a new item
+  // Route to render the add item page addItems.hbs
   app.get('/items/add', (req, res) => {
-   res.sendFile(path.join(__dirname, 'views', 'addItem.html'));
+    res.render('addItem');
   });
 
   // Route for adding a new item with image upload
