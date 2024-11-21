@@ -28,7 +28,14 @@ const app = express();
 const HTTP_PORT = process.env.PORT || 8080;
 
 // Configure Handlebars as the view engine
-app.engine('.hbs', exphbs.engine({ extname: '.hbs' }));
+const hbsHelpers = {
+  navLink: function (url, options) {
+    return `<li class="nav-item"><a class="nav-link ${
+      app.locals.activeRoute === url ? 'active' : ''
+    }" href="${url}">${options.fn(this)}</a></li>`;
+  },
+};
+app.engine('.hbs', exphbs.engine({ extname: '.hbs', helpers: hbsHelpers }));
 app.set('view engine', '.hbs');
 
 // Set up Cloudinary configuration
@@ -45,6 +52,13 @@ const upload = multer(); // Initialize multer without disk storage
 app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Middleware to set active route
+app.use((req, res, next) => {
+  let route = req.path.substring(1);
+  app.locals.activeRoute = `/${route.split('/')[0]}`;
+  next();
+});
 
 // Route for the root URL ("/") to redirect to the "/about" page
 app.get('/', (req, res) => {
