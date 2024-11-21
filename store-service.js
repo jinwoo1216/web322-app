@@ -114,6 +114,21 @@ function getItemById(id) {
   });
 }
 
+//Get published items by category
+function getPublishedItemsByCategory(category) {
+  return new Promise((resolve, reject) => {
+    const filteredItems = items.filter(
+      (item) => item.published === true && item.category == category
+    );
+    if (filteredItems.length > 0) {
+      resolve(filteredItems);
+    } else {
+      reject("No items found for this category.");
+    }
+  });
+}
+
+
 // Export the functions for use in server.js
 module.exports = {
   initialize,
@@ -123,5 +138,6 @@ module.exports = {
   addItem,
   getItemsByCategory,
   getItemsByMinDate,
-  getItemById
+  getItemById,
+  getPublishedItemsByCategory
 };

@@ -74,15 +74,112 @@ app.get('/about', (req, res) => {
 
 // Route for shop (all published items)
 app.get('/shop', (req, res) => {
+  const category = req.query.category; // Get category from query
+  const id = req.query.id; // Get item id from query
+  let viewData = {};
+
+  if (id) {
+    // Case 1: If `id` is specified, show that specific item
+    storeService.getItemById(id)
+      .then((item) => {
+        viewData.post = item; // Store the specific item
+        return storeService.getPublishedItems();
+      })
+      .then((items) => {
+        viewData.posts = items; // Store all published items
+        return storeService.getCategories();
+      })
+      .then((categories) => {
+        viewData.categories = categories; // Store all categories
+      })
+      .catch(() => {
+        viewData.message = "No item found.";
+      })
+      .finally(() => {
+        res.render('shop', { data: viewData });
+      });
+  } else if (category) {
+    // Case 2: If `category` is specified, show all items in that category
+    storeService.getPublishedItemsByCategory(category)
+      .then((filteredItems) => {
+        viewData.filteredPosts = filteredItems; // Store filtered items
+        return storeService.getPublishedItems();
+      })
+      .then((items) => {
+        viewData.posts = items; // Store all published items
+        return storeService.getCategories();
+      })
+      .then((categories) => {
+        viewData.categories = categories; // Store all categories
+      })
+      .catch(() => {
+        viewData.message = "No items found for this category.";
+      })
+      .finally(() => {
+        res.render('shop', { data: viewData });
+      });
+  } else {
+    // Default case: Show all published items
     storeService.getPublishedItems()
       .then((items) => {
-        res.json(items); // Send the published items as JSON
+        viewData.posts = items; // Store all published items
+        viewData.filteredPosts = items; // Show all items in the main section
+        return storeService.getCategories();
       })
-      .catch((err) => {
-        res.status(500).send(err);
+      .then((categories) => {
+        viewData.categories = categories; // Store all categories
+      })
+      .catch(() => {
+        viewData.message = "No items found.";
+      })
+      .finally(() => {
+        res.render('shop', { data: viewData });
       });
-  });
+  }
+});
+
   
+// Route for shop items
+app.get('/shop/:id', (req, res) => {
+  const id = req.params.id;
+  const category = req.query.category;
+
+  let viewData = {};
+
+  storeService.getItemById(id)
+    .then((item) => {
+      viewData.post = item; // Set the specific item
+    })
+    .catch(() => {
+      viewData.message = "No item found.";
+    })
+    .then(() => {
+      return storeService.getPublishedItems();
+    })
+    .then((items) => {
+      viewData.posts = items; // Set all published items
+    })
+    .catch(() => {
+      viewData.posts = [];
+    })
+    .then(() => {
+      return storeService.getCategories();
+    })
+    .then((categories) => {
+      viewData.categories = categories; // Set all categories
+    })
+    .catch(() => {
+      viewData.categoriesMessage = "No categories found.";
+    })
+    .finally(() => {
+      if (viewData.post) {
+        res.render('shop', { data: viewData });
+      } else {
+        res.render('shop', { message: viewData.message });
+      }
+    });
+});
+
 // Route for items (edited to use res.render)
 app.get('/items', (req, res) => {
   // Check for the query parameters in the URL
@@ -188,3 +285,8 @@ storeService.initialize()
   .catch((err) => {
     console.error("Unable to start server:", err);
   });
+
+// 404 fallback
+app.use((req, res) => {
+  res.status(404).render('404');
+});
