@@ -63,7 +63,7 @@ app.use((req, res, next) => {
 
 // Route for the root URL ("/") to redirect to the "/about" page
 app.get('/', (req, res) => {
-  res.redirect('/about');
+  res.redirect('/shop');
 });
 
 // Route to serve the about.html file from the "views" folder
