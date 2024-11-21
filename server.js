@@ -30,8 +30,9 @@ const HTTP_PORT = process.env.PORT || 8080;
 // Configure Handlebars as the view engine
 const hbsHelpers = {
   navLink: function (url, options) {
+    const isActive = app.locals.activeRoute === url;
     return `<li class="nav-item"><a class="nav-link ${
-      app.locals.activeRoute === url ? 'active' : ''
+      isActive ? 'active' : ''
     }" href="${url}">${options.fn(this)}</a></li>`;
   },
 };
@@ -56,7 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware to set active route
 app.use((req, res, next) => {
   let route = req.path.substring(1);
-  app.locals.activeRoute = `/${route.split('/')[0]}`;
+  app.locals.activeRoute = `/${route}`;
   next();
 });
 
@@ -82,110 +83,108 @@ app.get('/shop', (req, res) => {
       });
   });
   
-  // Route for items (all items)
-  app.get('/items', (req, res) => {
-    // Check for the query parameters in the URL
-    if (req.query.category) {
-      // Call the getItemsByCategory function from store-service.js
-      storeService.getItemsByCategory(req.query.category)
-        .then((items) => res.json(items))
-        .catch((err) => res.status(404).json({ message: err }));
-    } else if (req.query.minDate) {
-      // Call the getItemsByMinDate function from store-service.js
-      storeService.getItemsByMinDate(req.query.minDate)
-        .then((items) => res.json(items))
-        .catch((err) => res.status(404).json({ message: err }));
-    } else {
-      // Default behavior: get all items
-      storeService.getAllItems()
-        .then((items) => res.json(items))
-        .catch((err) => res.status(404).json({ message: err }));
-    }
-  });
+// Route for items (edited to use res.render)
+app.get('/items', (req, res) => {
+  // Check for the query parameters in the URL
+  if (req.query.category) {
+    // Call the getItemsByCategory function from store-service.js
+    storeService.getItemsByCategory(req.query.category)
+      .then((items) => res.render('items', { items }))
+      .catch(() => res.render('items', { message: 'No items found for this category' }));
+  } else if (req.query.minDate) {
+    // Call the getItemsByMinDate function from store-service.js
+    storeService.getItemsByMinDate(req.query.minDate)
+      .then((items) => res.render('items', { items }))
+      .catch(() => res.render('items', { message: 'No items found for this date range' }));
+  } else {
+    // Default behavior: get all items
+    storeService.getAllItems()
+      .then((items) => res.render('items', { items }))
+      .catch(() => res.render('items', { message: 'No items found' }));
+  }
+});
 
-  // Route to fetch a single item by ID
+// Route to fetch a single item by ID
 app.get('/item/:id', (req, res) => {
   storeService.getItemById(req.params.id)
-    .then((item) => res.json(item))
-    .catch((err) => res.status(404).json({ message: err }));
+    .then((item) => res.render('item', { item }))
+    .catch((err) => res.render('item', { message: 'Item not found' }));
 });
   
-  // Route for categories
-  app.get('/categories', (req, res) => {
-    storeService.getCategories()
-      .then((categories) => {
-        res.json(categories); // Send all categories as JSON
+  
+// Route for categories (edited to use res.render)
+app.get('/categories', (req, res) => {
+  storeService.getCategories()
+    .then((categories) => res.render('categories', { categories }))
+    .catch(() => res.render('categories', { message: 'No categories found' }));
+});
+  
+
+// Route to render the add item page addItems.hbs
+app.get('/items/add', (req, res) => {
+  res.render('addItem');
+});
+
+// Route for adding a new item with image upload
+app.post('/items/add', upload.single('featureImage'), (req, res) => {
+  if (req.file) {
+    // Function to upload the file stream to Cloudinary
+    let streamUpload = (req) => {
+      return new Promise((resolve, reject) => {
+        let stream = cloudinary.uploader.upload_stream(
+          (error, result) => {
+            if (result) {
+              resolve(result);
+            } else {
+              reject(error);
+            }
+          }
+        );
+        streamifier.createReadStream(req.file.buffer).pipe(stream);
+      });
+    };
+  
+    // Async function to handle the upload
+    async function upload(req) {
+      let result = await streamUpload(req);
+      console.log(result); // For debugging, shows the Cloudinary upload result
+      return result;
+    }
+  
+    // Upload the image and process the item
+    upload(req).then((uploaded) => {
+      processItem(uploaded.url);
+    }).catch((err) => {
+      res.status(500).send("Failed to upload image.");
+    });
+  
+  } else {
+    // No file uploaded; proceed with an empty image URL
+    processItem("");
+  }
+  
+  // Function to process the item data
+  function processItem(imageUrl) {
+    req.body.featureImage = imageUrl;
+
+    // Use the new function in store-service to add the item
+    storeService.addItem(req.body)
+      .then((newItem) => {
+        res.redirect('/items'); // Redirect to /items after adding new item
       })
       .catch((err) => {
-        res.status(500).send(err);
+        res.status(500).send("Error adding new item.");
       });
-  });
-
-  // Route to render the add item page addItems.hbs
-  app.get('/items/add', (req, res) => {
-    res.render('addItem');
-  });
-
-  // Route for adding a new item with image upload
-  app.post('/items/add', upload.single('featureImage'), (req, res) => {
-    if (req.file) {
-      // Function to upload the file stream to Cloudinary
-      let streamUpload = (req) => {
-        return new Promise((resolve, reject) => {
-          let stream = cloudinary.uploader.upload_stream(
-            (error, result) => {
-              if (result) {
-                resolve(result);
-              } else {
-                reject(error);
-              }
-            }
-          );
-          streamifier.createReadStream(req.file.buffer).pipe(stream);
-        });
-      };
+  }
+});  
   
-      // Async function to handle the upload
-      async function upload(req) {
-        let result = await streamUpload(req);
-        console.log(result); // For debugging, shows the Cloudinary upload result
-        return result;
-      }
-  
-      // Upload the image and process the item
-      upload(req).then((uploaded) => {
-        processItem(uploaded.url);
-      }).catch((err) => {
-        res.status(500).send("Failed to upload image.");
-      });
-  
-    } else {
-      // No file uploaded; proceed with an empty image URL
-      processItem("");
-    }
-  
-    // Function to process the item data
-    function processItem(imageUrl) {
-      req.body.featureImage = imageUrl;
-  
-      // Use the new function in store-service to add the item
-      storeService.addItem(req.body)
-        .then((newItem) => {
-          res.redirect('/items'); // Redirect to /items after adding new item
-        })
-        .catch((err) => {
-          res.status(500).send("Error adding new item.");
-        });
-    }
-  });  
-  
-  // Initialize the data from JSON files before starting the server
-  storeService.initialize()
-    .then(() => {
-      app.listen(HTTP_PORT, () => {
-        console.log(`Express http server listening on port ${HTTP_PORT}`);
-      });
-    })
-    .catch((err) => {
-      console.error("Unable to start server:", err);
+// Initialize the data from JSON files before starting the server
+storeService.initialize()
+  .then(() => {
+    app.listen(HTTP_PORT, () => {
+      console.log(`Express http server listening on port ${HTTP_PORT}`);
     });
+  })
+  .catch((err) => {
+    console.error("Unable to start server:", err);
+  });
