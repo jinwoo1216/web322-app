@@ -72,7 +72,7 @@ app.get('/about', (req, res) => {
 });
 
 
-// Route for shop (all published items)
+// Route for shop view
 app.get('/shop', (req, res) => {
   const category = req.query.category; // Get category from query
   const id = req.query.id; // Get item id from query
@@ -137,7 +137,6 @@ app.get('/shop', (req, res) => {
       });
   }
 });
-
   
 // Route for shop items
 app.get('/shop/:id', (req, res) => {
@@ -215,65 +214,66 @@ app.get('/categories', (req, res) => {
     .then((categories) => res.render('categories', { categories }))
     .catch(() => res.render('categories', { message: 'No categories found' }));
 });
-  
+
+// Route to add a new category
+app.get('/categories/add', (req, res) => {
+  res.render('addCategory');
+});
+
+app.post('/categories/add', (req, res) => {
+  storeService.addCategory(req.body)
+    .then(() => res.redirect('/categories'))
+    .catch(() => res.status(500).send("Unable to add category"));
+});
+
+// Route to delete a category by ID
+app.get('/categories/delete/:id', (req, res) => {
+  storeService.deleteCategoryById(req.params.id)
+    .then(() => res.redirect('/categories'))
+    .catch(() => res.status(500).send("Unable to delete category"));
+});
+
+// Route to delete a post by ID
+app.get('/items/delete/:id', (req, res) => {
+  storeService.deletePostById(req.params.id)
+    .then(() => res.redirect('/items'))
+    .catch(() => res.status(500).send("Unable to delete item"));
+});
 
 // Route to render the add item page addItems.hbs
 app.get('/items/add', (req, res) => {
-  res.render('addItem');
+  storeService.getCategories()
+    .then((categories) => res.render('addItem', { categories }))
+    .catch(() => res.render('addItem', { message: "No categories available" }));
 });
 
 // Route for adding a new item with image upload
 app.post('/items/add', upload.single('featureImage'), (req, res) => {
+  const processItem = (imageUrl) => {
+    req.body.featureImage = imageUrl;
+    storeService
+      .addItem(req.body)
+      .then(() => res.redirect('/items'))
+      .catch(() => res.status(500).send("Unable to add item"));
+  };
+
   if (req.file) {
-    // Function to upload the file stream to Cloudinary
     let streamUpload = (req) => {
       return new Promise((resolve, reject) => {
-        let stream = cloudinary.uploader.upload_stream(
-          (error, result) => {
-            if (result) {
-              resolve(result);
-            } else {
-              reject(error);
-            }
-          }
-        );
+        let stream = cloudinary.uploader.upload_stream((error, result) => {
+          if (result) resolve(result);
+          else reject(error);
+        });
         streamifier.createReadStream(req.file.buffer).pipe(stream);
       });
     };
-  
-    // Async function to handle the upload
-    async function upload(req) {
-      let result = await streamUpload(req);
-      console.log(result); // For debugging, shows the Cloudinary upload result
-      return result;
-    }
-  
-    // Upload the image and process the item
-    upload(req).then((uploaded) => {
-      processItem(uploaded.url);
-    }).catch((err) => {
-      res.status(500).send("Failed to upload image.");
-    });
-  
+    streamUpload(req)
+      .then((uploaded) => processItem(uploaded.url))
+      .catch(() => res.status(500).send("Image upload failed"));
   } else {
-    // No file uploaded; proceed with an empty image URL
     processItem("");
   }
-  
-  // Function to process the item data
-  function processItem(imageUrl) {
-    req.body.featureImage = imageUrl;
-
-    // Use the new function in store-service to add the item
-    storeService.addItem(req.body)
-      .then((newItem) => {
-        res.redirect('/items'); // Redirect to /items after adding new item
-      })
-      .catch((err) => {
-        res.status(500).send("Error adding new item.");
-      });
-  }
-});  
+});
   
 // Initialize the data from JSON files before starting the server
 storeService.initialize()

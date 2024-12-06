@@ -1,26 +1,28 @@
-<div class="container">
-  <h2>Categories</h2>
-  <div class="table-responsive">
-    <table class="table">
-      <thead>
+<h2>Categories</h2>
+
+<table class="table">
+    <thead>
         <tr>
-          <th>Category ID</th>
-          <th>Category Name</th>
+            <th>Category</th>
+            <th></th>
         </tr>
-      </thead>
-      <tbody>
+    </thead>
+    <tbody>
+        {{#if categories}}
         {{#each categories}}
         <tr>
-          <td><a href="/items?category={{id}}">{{id}}</a></td>
-          <td><a href="/items?category={{id}}">{{category}}</a></td>
+            <td>{{category}}</td>
+            <td>
+                <a href="/categories/delete/{{id}}" class="btn btn-danger">Remove</a>
+            </td>
         </tr>
         {{/each}}
-      </tbody>
-    </table>
-  </div>
-  {{#unless categories}}
-  <div class="text-center">
-    <strong>{{message}}</strong>
-  </div>
-  {{/unless}}
-</div>
+        {{else}}
+        <tr>
+            <td colspan="2">No categories available.</td>
+        </tr>
+        {{/if}}
+    </tbody>
+</table>
+
+<a href="/categories/add" class="btn btn-primary">Add Category</a>
