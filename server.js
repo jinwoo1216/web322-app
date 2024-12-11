@@ -1,14 +1,14 @@
 // server.js
 
 /*********************************************************************************
-WEB322 – Assignment 05
+WEB322 – Assignment 06
 I declare that this assignment is my own work in accordance with Seneca Academic Policy. 
 No part of this assignment has been copied manually or electronically from any other 
 source (including 3rd party web sites) or distributed to other students.
 
 Name: Jinwoo Park
 Student ID: 180446239
-Date: October 7, 2024
+Date: December 6, 2024
 Render Web App URL: https://web322-app-ores.onrender.com
 GitHub Repository URL: https://github.com/jinwoo1216/web322-app
 ********************************************************************************/
@@ -20,6 +20,8 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const exphbs = require('express-handlebars');
+const authData = require('./auth-service');
+const clientSessions = require('client-sessions');
 
 // Initialize express app
 const app = express();
@@ -48,6 +50,29 @@ cloudinary.config({
 });
 
 const upload = multer(); // Initialize multer without disk storage
+
+// Client-session middleware
+app.use(clientSessions({
+  cookieName: "session", // This will be the session cookie name
+  secret: "web322_assignment6_secret", // Replace with a strong secret key
+  duration: 2 * 60 * 1000, // Session duration: 2 minutes
+  activeDuration: 1000 * 60 // Session will extend if the user is active
+}));
+
+// Make session available to templates
+app.use(function (req, res, next) {
+  res.locals.session = req.session; // Make session accessible in templates
+  next();
+});
+
+// Middleware so protected routes are only for login users
+function ensureLogin(req, res, next) {
+  if (!req.session.user) {
+    res.redirect('/login');
+  } else {
+    next();
+  }
+}
 
 // Middleware to serve static files from the "public" folder
 app.use(express.static('public'));
@@ -180,7 +205,7 @@ app.get('/shop/:id', (req, res) => {
 });
 
 // Route for items (edited to use res.render)
-app.get('/items', (req, res) => {
+app.get('/items', ensureLogin, (req, res) => {
   // Check for the query parameters in the URL
   if (req.query.category) {
     // Call the getItemsByCategory function from store-service.js
@@ -209,46 +234,46 @@ app.get('/item/:id', (req, res) => {
   
   
 // Route for categories (edited to use res.render)
-app.get('/categories', (req, res) => {
+app.get('/categories', ensureLogin, (req, res) => {
   storeService.getCategories()
     .then((categories) => res.render('categories', { categories }))
     .catch(() => res.render('categories', { message: 'No categories found' }));
 });
 
 // Route to add a new category
-app.get('/categories/add', (req, res) => {
+app.get('/categories/add', ensureLogin, (req, res) => {
   res.render('addCategory');
 });
 
-app.post('/categories/add', (req, res) => {
+app.post('/categories/add', ensureLogin, (req, res) => {
   storeService.addCategory(req.body)
     .then(() => res.redirect('/categories'))
     .catch(() => res.status(500).send("Unable to add category"));
 });
 
 // Route to delete a category by ID
-app.get('/categories/delete/:id', (req, res) => {
+app.get('/categories/delete/:id', ensureLogin, (req, res) => {
   storeService.deleteCategoryById(req.params.id)
     .then(() => res.redirect('/categories'))
     .catch(() => res.status(500).send("Unable to delete category"));
 });
 
 // Route to delete a post by ID
-app.get('/items/delete/:id', (req, res) => {
+app.get('/items/delete/:id', ensureLogin, (req, res) => {
   storeService.deletePostById(req.params.id)
     .then(() => res.redirect('/items'))
     .catch(() => res.status(500).send("Unable to delete item"));
 });
 
 // Route to render the add item page addItems.hbs
-app.get('/items/add', (req, res) => {
+app.get('/items/add', ensureLogin, (req, res) => {
   storeService.getCategories()
     .then((categories) => res.render('addItem', { categories }))
     .catch(() => res.render('addItem', { message: "No categories available" }));
 });
 
 // Route for adding a new item with image upload
-app.post('/items/add', upload.single('featureImage'), (req, res) => {
+app.post('/items/add', ensureLogin, upload.single('featureImage'), (req, res) => {
   const processItem = (imageUrl) => {
     req.body.featureImage = imageUrl;
     storeService
@@ -274,9 +299,60 @@ app.post('/items/add', upload.single('featureImage'), (req, res) => {
     processItem("");
   }
 });
+
+// Login view
+app.get('/login', (req, res) => {
+  res.render('login');
+});
+
+// Register view
+app.get('/register', (req, res) => {
+  res.render('register');
+});
+
+// POST /register
+app.post('/register', (req, res) => {
+  authData.registerUser(req.body)
+    .then(() => {
+      res.render('register', { successMessage: "User created" });
+    })
+    .catch((err) => {
+      res.render('register', { errorMessage: err, userName: req.body.userName });
+    });
+});
+
+// POST /login
+app.post('/login', (req, res) => {
+  req.body.userAgent = req.get('User-Agent'); // Capture User-Agent
   
+  authData.checkUser(req.body)
+    .then((user) => {
+      req.session.user = {
+        userName: user.userName,
+        email: user.email,
+        loginHistory: user.loginHistory
+      };
+      res.redirect('/items');
+    })
+    .catch((err) => {
+      res.render('login', { errorMessage: err, userName: req.body.userName });
+    });
+});
+
+// Redirects logout to homepage
+app.get('/logout', (req, res) => {
+  req.session.reset();
+  res.redirect('/');
+});
+
+// User history
+app.get('/userHistory', ensureLogin, (req, res) => {
+  res.render('userHistory');
+});
+
 // Initialize the data from JSON files before starting the server
 storeService.initialize()
+  .then(authData.initialize)
   .then(() => {
     app.listen(HTTP_PORT, () => {
       console.log(`Express http server listening on port ${HTTP_PORT}`);
